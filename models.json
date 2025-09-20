@@ -1,0 +1,36 @@
+{
+    "1593241": {
+        "pieces": [
+            {"segments": [[0,1], [0,1], [0,2]], "count": 2},
+            {"segments": [[0,2], [0,2], [0,3]], "count": 2},
+            {"segments": [[0,2], [0,4], [0,1]], "count": 4},
+            {"segments": [[0,1], [0,4], [0,2]], "count": 2},
+            {"segments": [[0,3], [0,3], [0,1]], "count": 2},
+            {"segments": [[0,2], [0,1], [0,3]], "count": 2},
+            {"segments": [[0,4], [0,2], [0,1]], "count": 1},
+            {"segments": [[0,2], [0,3], [1,2]], "count": 1},
+            {"segments": [[0,2], [1,2], [1,2]], "count": 1},
+            {"segments": [[0,2], [0,2], [0,1]], "count": 1},
+            {"segments": [[0,2], [0,3], [0,2]], "count": 4},
+            {"segments": [[0,1], [0,4], [3,1]], "count": 1},
+            {"segments": [[1,1], [0,3], [0,2]], "count": 1},
+            {"segments": [[0,2], [0,2], [1,1]], "count": 1},
+            {"segments": [[1,1], [0,2], [0,4]], "count": 1},
+            {"segments": [[0,1], [0,4], [0,1]], "count": 1},
+            {"segments": [[0,1], [0,2], [0,2]], "count": 1},
+            {"segments": [[0,3], [0,2], [0,1]], "count": 1},
+            {"segments": [[0,3], [0,1], [0,3]], "count": 1},
+            {"segments": [[0,1], [0,1], [0,3]], "count": 1}
+        ],
+        "grid_width": 14,
+        "grid_height": 14
+    },
+    "1": {
+        "pieces": [
+            {"segments": [[0, 1], [0, 1], [0, 2]], "count": 1},
+            {"segments": [[0, 2], [0, 2], [1, 1]], "count": 1}
+        ],
+        "grid_width": 3,
+        "grid_height": 3
+    }
+}
