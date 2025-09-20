@@ -84,33 +84,41 @@ def get_covered_cells(piece, x_start, y_base):
 
 
 def build_matrix_and_placements(pieces, GRID_WIDTH, GRID_HEIGHT):
-    # 为每个piece类型计算所有放置位置
-    piece_placements = []
-    for i, piece in enumerate(pieces):
-        placements = get_valid_placements(piece)
-        piece_placements.append((piece, placements))
-    print("State: 3/5 - 计算所有放置位置完成")
+    # 为每个piece类型计算所有放置位置（含180度旋转）
+    def rotate_piece(piece):
+        # 180度旋转：segments反转，dy变号，保持length不变
+        new_segments = [(-dy, length) for dy, length in reversed(piece.segments)]
+        return PuzzlePiece(new_segments, piece.count)
 
-    # 构建矩阵的行
-    matrix_rows = []  # 每行是一个放置选择，包含它覆盖的列索引
-    piece_info = []   # 存储每个选择对应的piece信息
-    print("State: 4/5 - 构建矩阵行")
+    print("State: 3/5 - 计算所有放置位置完成（含旋转）")
+    matrix_rows = []
+    piece_info = []
     cell_col_offset = 0
     piece_col_offset = GRID_WIDTH * GRID_HEIGHT
 
-    for piece_idx, (piece, placements) in enumerate(piece_placements):
+    # 对每个拼图块的每个副本，枚举所有放置（原始+旋转），都归属于同一个 piece_col
+    for piece_idx, piece in enumerate(pieces):
         piece_start_col = piece_col_offset + sum(p.count for p in pieces[:piece_idx])
         for copy_idx in range(piece.count):
             piece_col = piece_start_col + copy_idx
+            # 原始方向
+            placements = get_valid_placements(piece)
             for x_start, y_base in placements:
                 covered_cells = get_covered_cells(piece, x_start, y_base)
-                row_columns = []
-                for x, y in covered_cells:
-                    col_idx = x * GRID_HEIGHT + y
-                    row_columns.append(col_idx)
+                row_columns = [x * GRID_HEIGHT + y for x, y in covered_cells]
                 row_columns.append(piece_col)
                 matrix_rows.append(row_columns)
-                piece_info.append((piece_idx, copy_idx, x_start, y_base))
+                piece_info.append((piece_idx, copy_idx, x_start, y_base, False))
+            # 旋转方向（如果和原始不同）
+            rotated_piece = rotate_piece(piece)
+            if rotated_piece.segments != piece.segments:
+                placements_rot = get_valid_placements(rotated_piece)
+                for x_start, y_base in placements_rot:
+                    covered_cells = get_covered_cells(rotated_piece, x_start, y_base)
+                    row_columns = [x * GRID_HEIGHT + y for x, y in covered_cells]
+                    row_columns.append(piece_col)
+                    matrix_rows.append(row_columns)
+                    piece_info.append((piece_idx, copy_idx, x_start, y_base, True))
     print("State: 4/5 - 矩阵行构建完成")
     return matrix_rows, piece_info
 
@@ -306,13 +314,16 @@ def main():
             # 获取 piece_info 索引
             row_idx = getattr(node, 'piece_info_idx', None)
             if row_idx is None:
-                # 如果不是行头节点，向右遍历到行头
                 cur = node
                 while getattr(cur, 'piece_info_idx', None) is None:
                     cur = cur.right
                 row_idx = cur.piece_info_idx
-            piece_idx, copy_idx, x_start, y_base = piece_info[row_idx]
-            piece = pieces[piece_idx]
+            piece_idx, copy_idx, x_start, y_base, is_rotated = piece_info[row_idx]
+            # 选择原始或旋转后的piece
+            if is_rotated:
+                piece = PuzzlePiece([(-dy, length) for dy, length in reversed(pieces[piece_idx].segments)], pieces[piece_idx].count)
+            else:
+                piece = pieces[piece_idx]
             covered_cells = get_covered_cells(piece, x_start, y_base)
             for x, y in covered_cells:
                 grid[x][y] = piece_idx + 1
@@ -387,7 +398,7 @@ def get_model(model_id):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="DLXSolver - 拼图解算器")
-    parser.add_argument("--interval", type=int, default=60, help="监控间隔时间（秒）")
+    parser.add_argument("--interval", type=int, default=10, help="监控间隔时间（秒）")
     parser.add_argument("--test", action="store_true", help="启用测试模式（1x1拼图）")
     parser.add_argument("--pieces", type=list, help="自定义拼图块配置")
     parser.add_argument("--grid-width", type=int, help="拼图网格宽度")
@@ -397,7 +408,7 @@ if __name__ == "__main__":
     # model-id 不能与 pieces, grid-width, grid-height 一起使用
 
     args = parser.parse_args()
-    if args.model_id == True:
+    if args.model_id is not None:
         if args.pieces or args.grid_width or args.grid_height:
             print("错误: model-id 与 pieces, grid-width, grid-height 不能一起使用")
             exit(1)
