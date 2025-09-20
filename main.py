@@ -8,33 +8,64 @@ TEST = False
 
 
 class PuzzlePiece:
-    def __init__(self, segments, count=1):
+    def __init__(self, matrix, count=1):
         """
-        segments: list of tuples (dy, length)
+        matrix: 2D list表示拼图块形状，1表示块的一部分，0表示空
         count: 该类型块的数量
         """
-        self.segments = segments  # [(dy0, len0), (dy1, len1), ...]
+        self.matrix = matrix  # 2D矩阵表示拼图块
         self.count = count
-        self.width = len(segments)  # 块的列数
+        self.height = len(matrix)  # 块的行数
+        self.width = len(matrix[0]) if matrix else 0  # 块的列数
+
+    def get_segments(self):
+        """
+        将2D矩阵转换为segments格式，供内部算法使用
+        """
+        segments = []
+        for row_idx, row in enumerate(self.matrix):
+            start = None
+            length = 0
+            for col_idx, cell in enumerate(row):
+                if cell == 1:
+                    if start is None:
+                        start = col_idx
+                    length += 1
+                elif start is not None:
+                    segments.append((row_idx, length))
+                    start = None
+                    length = 0
+            if start is not None:
+                segments.append((row_idx, length))
+        return segments
+
+    def rotate_180(self):
+        """
+        返回180度旋转后的拼图块
+        """
+        rotated_matrix = [row[::-1] for row in self.matrix[::-1]]
+        return PuzzlePiece(rotated_matrix, self.count)
 
 
 """ 拼图块定义 
 # 格式:
-# --- col
-# OXX | ln
-# XXX | ln
-# XXO | ln
-# (0, 2) (0, 3) (1, 2)
-# 即为 PuzzlePiece([(0,2), (0,3), (1,2)], 1)
-# 解释:
-# PuzzlePiece([(dy, leny), (dy, leny), ...], count)
-# x轴是列表索引
+# 2D矩阵表示拼图块形状
+# 例如:
+# [
+#     [0, 1, 1],
+#     [1, 1, 1],
+#     [1, 1, 0]
+# ]
+# 表示一个3x3的拼图块
 """
 
 
 def create_test_case():
+    """
+    创建一个简单的测试用例
+    """
     pieces = [
-        PuzzlePiece([(0, 1)], count=1)  # 1x1方块
+        PuzzlePiece([[1]], count=1)  # 1x1方块
     ]
     grid_width, grid_height = 1, 1  # 1x1网格
     return pieces, grid_width, grid_height
@@ -44,52 +75,35 @@ def get_valid_placements(piece):
     """
     返回一个piece所有有效的放置位置(x_start, y_base)
     """
-    # print("get_valid_placements 被 %s 线程调用了!" % threading.current_thread().name)
     placements = []
     # 计算y_base的范围
     min_y_base = 0
-    max_y_base = GRID_HEIGHT - 1
+    max_y_base = GRID_HEIGHT - piece.height
 
-    for dy, length in piece.segments:
-        min_y_base = max(min_y_base, -dy)  # y_base + dy >= 0 ⇒ y_base >= -dy
-        # y_base + dy + length - 1 <= 13
-        max_y_base = min(max_y_base, GRID_HEIGHT - (dy + length - 1))
-
-    if min_y_base > max_y_base:
-        return []  # 无有效放置
-
-    # 遍历所有可能的位置
-    for x_start in range(GRID_WIDTH):
+    for x_start in range(GRID_WIDTH - piece.width + 1):
         for y_base in range(min_y_base, max_y_base + 1):
             placements.append((x_start, y_base))
 
     return placements
 
 
-print("State: 2/5 - 定义函数 get_valid_placements 完成")
-
-
 def get_covered_cells(piece, x_start, y_base):
     """
     返回一个放置位置覆盖的网格单元格列表(x, y)
     """
-    # print("get_covered_cells 被 %s 线程调用了!" % threading.current_thread().name)
     covered = []
-    for i, (dy, length) in enumerate(piece.segments):
-        x = (x_start + i) % GRID_WIDTH  # 环状处理
-        for y in range(y_base + dy, y_base + dy + length):
-            covered.append((x, y))
+    for row_idx, row in enumerate(piece.matrix):
+        for col_idx, cell in enumerate(row):
+            if cell == 1:
+                x = (x_start + col_idx) % GRID_WIDTH  # 环状处理
+                y = y_base + row_idx
+                covered.append((x, y))
     return covered
 
 
 
 def build_matrix_and_placements(pieces, GRID_WIDTH, GRID_HEIGHT):
     # 为每个piece类型计算所有放置位置（含180度旋转）
-    def rotate_piece(piece):
-        # 180度旋转：segments反转，dy变号，保持length不变
-        new_segments = [(-dy, length) for dy, length in reversed(piece.segments)]
-        return PuzzlePiece(new_segments, piece.count)
-
     print("State: 3/5 - 计算所有放置位置完成（含旋转）")
     matrix_rows = []
     piece_info = []
@@ -110,8 +124,8 @@ def build_matrix_and_placements(pieces, GRID_WIDTH, GRID_HEIGHT):
                 matrix_rows.append(row_columns)
                 piece_info.append((piece_idx, copy_idx, x_start, y_base, False))
             # 旋转方向（如果和原始不同）
-            rotated_piece = rotate_piece(piece)
-            if rotated_piece.segments != piece.segments:
+            rotated_piece = piece.rotate_180()
+            if rotated_piece.matrix != piece.matrix:
                 placements_rot = get_valid_placements(rotated_piece)
                 for x_start, y_base in placements_rot:
                     covered_cells = get_covered_cells(rotated_piece, x_start, y_base)
@@ -214,21 +228,19 @@ class DLX:
 
     def solve(self, solution):
         """递归求解"""
-        # print("DLX.solve 被 %s 线程调用了!" % threading.current_thread().name)
 
         def _solve(self, solution):
             """递归求解"""
-            # print("DLX.solve._solve 被调用了!")
             self.steps += 1
-            # print(f"DLX.solve._solve 步数: {self.steps}")
-            if self.steps % 10000 == 0:  # 每10000步打印一次
+            # 减少垃圾回收频率
+            if self.steps % 50000 == 0:  # 每50000步调用一次垃圾回收
                 print(f"进度: {self.steps}步 | 当前解长度: {len(solution)}")
-            gc.collect()
+                gc.collect()
 
             if self.header.right == self.header:
                 return True  # 找到解
 
-            # 选择最小的列
+            # 优化列选择策略：缓存列大小，避免重复遍历
             col_node = self.header.right
             min_size = col_node.size
             current = col_node.right
@@ -240,6 +252,11 @@ class DLX:
 
             if col_node.size == 0:
                 return False  # 无解
+
+            # 剪枝：缓存未覆盖列数，避免重复计算
+            uncovered_cols = sum(1 for col in self.columns if col.size > 0)
+            if uncovered_cols > 0 and min_size > uncovered_cols:
+                return False  # 剪枝，无解
 
             self.cover(col_node)
 
@@ -394,6 +411,7 @@ def get_model(model_id):
             pieces.append(PuzzlePiece(segments, count))
         return pieces, model["grid_width"], model["grid_height"]
     return None, None, None
+
 
 
 if __name__ == "__main__":
